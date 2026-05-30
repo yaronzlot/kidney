@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ריסוק אבנים בכליות</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Heebo:wght@400;700;900&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+    body {
+      min-height: 100vh;
+      background: #0a0a1a;
+      background-image: radial-gradient(ellipse at 50% 0%, rgba(0,200,255,0.12) 0%, transparent 60%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      font-family: 'Heebo', sans-serif; direction: rtl;
+      padding: 12px; overflow-x: hidden;
+    }
+
+    /* LOBBY */
+    #lobby {
+      background: #111128; border-radius: 24px; padding: 36px 28px;
+      border: 1px solid rgba(0,200,255,0.3);
+      box-shadow: 0 0 60px rgba(0,200,255,0.1);
+      text-align: center; max-width: 320px; width: 100%; margin-top: 50px;
+    }
+    .lobby-icon { font-size: 3rem; margin-bottom: 8px; }
+    .lobby-title {
+      font-family: 'Bebas Neue', cursive; font-size: 2rem; color: #00c8ff;
+      letter-spacing: 0.05em; margin-bottom: 4px;
+      text-shadow: 0 0 20px rgba(0,200,255,0.6);
+    }
+    .lobby-sub { color: rgba(255,255,255,0.35); font-size: 0.78rem; margin-bottom: 24px; }
+    .lobby-btn {
+      width: 100%; padding: 14px; border-radius: 16px; border: none;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-family: 'Heebo', sans-serif; margin-bottom: 10px; transition: transform 0.15s;
+    }
+    .lobby-btn:hover { transform: translateY(-2px); }
+    .btn-cpu { background: linear-gradient(135deg, #00c8ff, #0077aa); color: white; box-shadow: 0 4px 20px rgba(0,200,255,0.3); }
+    .btn-friend { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.1); }
+    .divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; color: rgba(255,255,255,0.2); font-size: 0.75rem; }
+    .divider::before, .divider::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.08); }
+    .code-input {
+      width: 100%; padding: 13px; border-radius: 14px;
+      border: 2px solid rgba(0,200,255,0.3); background: rgba(255,255,255,0.05);
+      font-size: 1.4rem; font-weight: 700; text-align: center;
+      letter-spacing: 0.2em; font-family: 'Heebo', sans-serif;
+      outline: none; direction: ltr; color: white; margin-bottom: 10px;
+    }
+    .code-input:focus { border-color: #00c8ff; }
+    .code-input::placeholder { font-size: 0.9rem; letter-spacing: 0.05em; color: rgba(255,255,255,0.2); }
+    .btn-join {
+      width: 100%; background: linear-gradient(135deg, #00c8ff, #0077aa);
+      color: white; border: none; border-radius: 14px;
+      padding: 13px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; font-family: 'Heebo', sans-serif;
+    }
+    #lobby-err { color: #ff6b6b; font-size: 0.8rem; margin-top: 8px; min-height: 18px; }
+
+    /* WAITING */
+    #waiting {
+      background: #111128; border-radius: 24px; padding: 36px 28px;
+      border: 1px solid rgba(0,200,255,0.3); text-align: center;
+      max-width: 320px; width: 100%; display: none; margin-top: 50px;
+    }
+    #waiting h2 { color: white; font-size: 1.1rem; margin-bottom: 8px; }
+    .waiting-hint { color: rgba(255,255,255,0.35); font-size: 0.82rem; }
+    .room-code-big {
+      font-family: 'Bebas Neue', cursive; font-size: 4rem; color: #00c8ff;
+      direction: ltr; margin: 12px 0; text-shadow: 0 0 30px rgba(0,200,255,0.6);
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid rgba(0,200,255,0.2);
+      border-top-color: #00c8ff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 16px auto 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .leave-btn {
+      background: none; border: none; color: rgba(255,255,255,0.25);
+      font-size: 0.78rem; cursor: pointer; font-family: inherit;
+      text-decoration: underline; margin-top: 14px; display: block;
+    }
+
+    /* GAME */
+    #game { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 420px; }
+
+    .game-header { text-align: center; margin-bottom: 6px; margin-top: 4px; }
+    .game-title {
+      font-family: 'Bebas Neue', cursive; font-size: 1.6rem; color: #00c8ff;
+      text-shadow: 0 0 15px rgba(0,200,255,0.5);
+    }
+    .room-badge { font-size: 0.65rem; color: rgba(255,255,255,0.25); }
+    .room-badge span { color: #00c8ff; }
+
+    /* Scoreboard */
+    .scoreboard { display: flex; gap: 8px; width: 100%; margin-bottom: 8px; }
+    .score-card {
+      flex: 1; background: #111128; border-radius: 12px;
+      padding: 6px 4px; text-align: center;
+      border: 1px solid rgba(255,255,255,0.06); transition: border-color 0.3s;
+    }
+    .score-card.active { border-color: #00c8ff; box-shadow: 0 0 12px rgba(0,200,255,0.2); }
+    .score-name { font-size: 0.55rem; color: rgba(255,255,255,0.4); }
+    .score-pts { font-family: 'Bebas Neue', cursive; font-size: 1.6rem; color: white; line-height: 1; }
+
+    /* Status */
+    .status-area {
+      min-height: 36px; display: flex; align-items: center; justify-content: center;
+      margin-bottom: 8px;
+    }
+    .status-pill {
+      padding: 8px 18px; border-radius: 30px; font-size: 0.85rem; font-weight: 700;
+      background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .status-win {
+      padding: 10px 24px; border-radius: 30px; font-size: 0.95rem; font-weight: 800;
+      background: linear-gradient(135deg, #00c8ff, #0077aa); color: white;
+      animation: pop 0.4s cubic-bezier(.36,2,.4,.8);
+    }
+    .status-lose {
+      padding: 10px 24px; border-radius: 30px; font-size: 0.95rem; font-weight: 800;
+      background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;
+      animation: pop 0.4s cubic-bezier(.36,2,.4,.8);
+    }
+
+    /* Canvas */
+    .canvas-wrap { width: 100%; margin-bottom: 8px; position: relative; }
+    canvas#gameCanvas {
+      width: 100%; border-radius: 18px; display: block;
+      border: 1px solid rgba(0,200,255,0.15);
+      cursor: crosshair;
+    }
+    .aim-hint {
+      text-align: center; font-size: 0.65rem; color: rgba(255,255,255,0.3);
+      margin-bottom: 6px;
+    }
+
+    /* Result flash */
+    .result-flash {
+      position: fixed; top: 38%; left: 50%; transform: translate(-50%,-50%);
+      font-family: 'Bebas Neue', cursive; font-size: 3.5rem;
+      pointer-events: none; z-index: 100;
+      animation: flashResult 1.2s ease-out forwards;
+    }
+    .dust { color: #00c8ff; text-shadow: 0 0 30px rgba(0,200,255,0.9); }
+    .chunks { color: #f39c12; text-shadow: 0 0 30px rgba(243,156,18,0.9); }
+    .miss { color: #e74c3c; text-shadow: 0 0 20px rgba(231,76,60,0.8); }
+    @keyframes flashResult {
+      0% { opacity:1; transform:translate(-50%,-50%) scale(0.5); }
+      40% { opacity:1; transform:translate(-50%,-65%) scale(1.2); }
+      100% { opacity:0; transform:translate(-50%,-90%) scale(0.8); }
+    }
+
+    .next-btn {
+      width: 100%; padding: 13px; border-radius: 16px; border: none;
+      font-family: 'Bebas Neue', cursive; font-size: 1.3rem;
+      background: rgba(255,255,255,0.08); color: white; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12); margin-bottom: 8px;
+      transition: transform 0.15s;
+    }
+    .next-btn:hover { transform: translateY(-2px); }
+
+    /* Emoji */
+    .emoji-bar { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+    .emoji-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+      font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s;
+    }
+    .emoji-btn:hover { transform: scale(1.2); }
+    .emoji-bubble {
+      position: fixed; bottom: 80px; font-size: 3rem; z-index: 999;
+      animation: bubbleUp 2.5s ease-out forwards; pointer-events: none;
+    }
+    .emoji-bubble.mine { right: 30px; }
+    .emoji-bubble.theirs { left: 30px; }
+    @keyframes bubbleUp {
+      0% { opacity:1; transform:translateY(0) scale(1); }
+      80% { opacity:1; transform:translateY(-120px) scale(1.3); }
+      100% { opacity:0; transform:translateY(-160px) scale(0.8); }
+    }
+    @keyframes pop {
+      0% { transform:scale(0.7); opacity:0; }
+      70% { transform:scale(1.1); }
+      100% { transform:scale(1); opacity:1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div class="lobby-icon">🔬</div>
+  <div class="lobby-title">ריסוק אבנים בכליות</div>
+  <div class="lobby-sub">כוון לייזר → ירי → ריסוק! ראשון ל-10 נקודות מנצח</div>
+  <button class="lobby-btn btn-cpu" onclick="startVsCpu()">🤖 שחק נגד המחשב</button>
+  <button class="lobby-btn btn-friend" onclick="startVsFriend()">🤝 צרף חבר</button>
+  <div class="divider">יש לך קוד?</div>
+  <input class="code-input" id="join-code" maxlength="4" placeholder="קוד חדר" oninput="this.value=this.value.replace(/\D/g,'')">
+  <button class="btn-join" onclick="joinRoom()">הצטרף</button>
+  <div id="lobby-err"></div>
+</div>
+
+<!-- WAITING -->
+<div id="waiting">
+  <h2>ממתין לשחקן שני...</h2>
+  <div class="waiting-hint">שלח לחבר:</div>
+  <div class="room-code-big" id="display-code"></div>
+  <div class="waiting-hint">המשחק יתחיל אוטומטית</div>
+  <div class="spinner"></div>
+  <button class="leave-btn" onclick="leaveRoom()">בטל</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="game-header">
+    <div class="game-title">🔬 ריסוק אבנים בכליות</div>
+    <div class="room-badge">חדר: <span id="room-badge-code"></span></div>
+  </div>
+
+  <div class="scoreboard">
+    <div class="score-card" id="score-card-me">
+      <div class="score-name" id="score-name-me">אתה</div>
+      <div class="score-pts" id="score-me">0</div>
+    </div>
+    <div class="score-card" id="score-card-opp">
+      <div class="score-name" id="score-name-opp">יריב</div>
+      <div class="score-pts" id="score-opp">0</div>
+    </div>
+  </div>
+
+  <div class="status-area" id="status-area">
+    <div class="status-pill">גרור לייזר לכיוון האבן וירה!</div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="gameCanvas" width="400" height="340"></canvas>
+  </div>
+  <div class="aim-hint">לחץ וגרור מהלייזר לכיוון האבן → שחרר לירות</div>
+
+  <button class="next-btn" id="next-btn" onclick="nextRound()" style="display:none">▶ סיבוב הבא</button>
+
+  <div class="emoji-bar">
+    <button class="emoji-btn" onclick="sendEmoji('🔬')">🔬</button>
+    <button class="emoji-btn" onclick="sendEmoji('💥')">💥</button>
+    <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
+    <button class="emoji-btn" onclick="sendEmoji('🔥')">🔥</button>
+    <button class="emoji-btn" onclick="sendEmoji('😤')">😤</button>
+    <button class="emoji-btn" onclick="sendEmoji('💩')">💩</button>
+    <button class="emoji-btn" onclick="sendEmoji('👏')">👏</button>
+    <button class="emoji-btn" onclick="sendEmoji('🤡')">🤡</button>
+  </div>
+  <button class="leave-btn" onclick="leaveRoom()">עזוב</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, update, remove }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2SECYc_9V7NDASMzSzf0Se5OL6NyU8wA",
+    authDomain: "priel-af970.firebaseapp.com",
+    databaseURL: "https://priel-af970-default-rtdb.firebaseio.com",
+    projectId: "priel-af970",
+    storageBucket: "priel-af970.firebasestorage.app",
+    messagingSenderId: "816586982849",
+    appId: "1:816586982849:web:b991437452fffae36e5b40"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // ─── State ───
+  let myRole = null;
+  let roomCode = null;
+  let unsubscribe = null;
+  let vsComputer = false;
+  let lastEmojiTs = 0;
+  let scores = { me: 0, opp: 0 };
+  let gameActive = false;
+  let roundDone = false;
+
+  // ─── Canvas ───
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Stone target zone — center area of kidney
+  const KIDNEY = { x: W/2, y: H/2 - 20, rx: 75, ry: 95 };
+  // Stone position inside kidney
+  let stone = { x: W/2, y: H/2 - 10, r: 22, hp: 100 };
+  // Laser source — bottom center
+  const LASER_SRC = { x: W/2, y: H - 30 };
+
+  let dragging = false;
+  let dragStart = null;
+  let aimLine = null; // {x1,y1,x2,y2}
+  let particles = [];
+  let laserAnim = null;
+  let laserBeam = null; // active beam being drawn
+
+  // ─── Drawing ───
+  function drawScene() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Background — medical dark
+    const bg = ctx.createRadialGradient(W/2, H/2, 30, W/2, H/2, 220);
+    bg.addColorStop(0, '#0d1a2a');
+    bg.addColorStop(1, '#060a12');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid lines (medical look)
+    ctx.strokeStyle = 'rgba(0,200,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 30) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // Kidney shape
+    drawKidney();
+
+    // Stone
+    if (stone.hp > 0) drawStone();
+
+    // Aim line
+    if (aimLine && !laserBeam) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,200,255,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6,4]);
+      ctx.beginPath();
+      ctx.moveTo(aimLine.x1, aimLine.y1);
+      ctx.lineTo(aimLine.x2, aimLine.y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Laser beam animation
+    if (laserBeam) drawLaserBeam();
+
+    // Particles
+    drawParticles();
+
+    // Laser device
+    drawLaserDevice();
+  }
+
+  function drawKidney() {
+    ctx.save();
+    ctx.translate(KIDNEY.x, KIDNEY.y);
+    // Outer kidney shape (ellipse with indent)
+    ctx.beginPath();
+    ctx.ellipse(0, 0, KIDNEY.rx, KIDNEY.ry, 0, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, KIDNEY.rx);
+    grad.addColorStop(0, 'rgba(180,60,80,0.25)');
+    grad.addColorStop(1, 'rgba(120,30,50,0.4)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(220,80,100,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner texture lines
+    ctx.strokeStyle = 'rgba(255,120,140,0.1)';
+    ctx.lineWidth = 1;
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.ellipse(i*8, 0, KIDNEY.rx * 0.6, KIDNEY.ry * 0.7, 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    // Label
+    ctx.fillStyle = 'rgba(255,150,160,0.5)';
+    ctx.font = '11px Heebo';
+    ctx.textAlign = 'center';
+    ctx.fillText('כליה', 0, -KIDNEY.ry + 16);
+    ctx.restore();
+  }
+
+  function drawStone() {
+    const s = stone;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+
+    // Stone glow
+    const glow = ctx.createRadialGradient(0,0,2,0,0,s.r*1.8);
+    glow.addColorStop(0, 'rgba(180,150,80,0.3)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(0,0,s.r*1.8,0,Math.PI*2); ctx.fill();
+
+    // Stone body
+    const stoneGrad = ctx.createRadialGradient(-4,-4,2,0,0,s.r);
+    stoneGrad.addColorStop(0, '#d4a855');
+    stoneGrad.addColorStop(0.5, '#a07830');
+    stoneGrad.addColorStop(1, '#5a4010');
+    ctx.beginPath();
+    // Irregular stone shape
+    ctx.save();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const r = s.r * (0.8 + Math.sin(i * 2.3) * 0.2);
+      if (i === 0) ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
+      else ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+    }
+    ctx.closePath();
+    ctx.fillStyle = stoneGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#8a6020';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // HP bar
+    const hpPct = s.hp / 100;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(-s.r, s.r + 6, s.r*2, 6);
+    ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f39c12' : '#e74c3c';
+    ctx.fillRect(-s.r, s.r + 6, s.r*2*hpPct, 6);
+
+    ctx.restore();
+  }
+
+  function drawLaserDevice() {
+    ctx.save();
+    ctx.translate(LASER_SRC.x, LASER_SRC.y);
+    // Device body
+    const dGrad = ctx.createLinearGradient(-20,-10,20,10);
+    dGrad.addColorStop(0, '#1a4a6a');
+    dGrad.addColorStop(1, '#0a2a3a');
+    ctx.fillStyle = dGrad;
+    ctx.beginPath(); ctx.roundRect(-20,-10,40,20,6); ctx.fill();
+    ctx.strokeStyle = '#00c8ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Laser tip
+    ctx.fillStyle = '#00ffff';
+    ctx.beginPath(); ctx.arc(0,-10,4,0,Math.PI*2); ctx.fill();
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    // Label
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,200,255,0.6)';
+    ctx.font = '9px Heebo';
+    ctx.textAlign = 'center';
+    ctx.fillText('LASER', 0, 4);
+    ctx.restore();
+  }
+
+  function drawLaserBeam() {
+    if (!laserBeam) return;
+    const { x1,y1,x2,y2,progress } = laserBeam;
+    const ex = x1 + (x2-x1)*progress;
+    const ey = y1 + (y2-y1)*progress;
+
+    ctx.save();
+    // Outer glow
+    ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
+    // Inner beam
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 15;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function updateParticles() {
+    particles = particles.filter(p => p.alpha > 0.02);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.2; // gravity
+      p.alpha *= 0.93;
+      p.r *= 0.97;
+    });
+  }
+
+  function spawnParticles(x, y, type) {
+    const colors = type === 'dust'
+      ? ['#00ffff','#aaffff','#ffffff','#80e8ff']
+      : ['#d4a855','#a07830','#f0c060','#8a6020'];
+    const count = type === 'dust' ? 30 : 18;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 2,
+        r: 1 + Math.random() * 4,
+        alpha: 1,
+        color: colors[Math.floor(Math.random()*colors.length)]
+      });
+    }
+  }
+
+  // ─── Game loop ───
+  let animFrame;
+  function gameLoop() {
+    updateParticles();
+    drawScene();
+    animFrame = requestAnimationFrame(gameLoop);
+  }
+
+  // ─── Hit detection ───
+  function hitStone(x2, y2) {
+    // Line from LASER_SRC to (x2,y2) — check if it passes through stone
+    const dx = x2 - LASER_SRC.x, dy = y2 - LASER_SRC.y;
+    const fx = LASER_SRC.x - stone.x, fy = LASER_SRC.y - stone.y;
+    const a = dx*dx + dy*dy;
+    const b = 2*(fx*dx + fy*dy);
+    const c = fx*fx + fy*fy - stone.r*stone.r;
+    const disc = b*b - 4*a*c;
+    if (disc < 0) return false;
+    const t = (-b - Math.sqrt(disc)) / (2*a);
+    return t >= 0 && t <= 1;
+  }
+
+  function getAccuracy(x2, y2) {
+    // How close to stone center does the line pass?
+    const dx = x2 - LASER_SRC.x, dy = y2 - LASER_SRC.y;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    const ux = dx/len, uy = dy/len;
+    // Distance from stone center to line
+    const fx = stone.x - LASER_SRC.x, fy = stone.y - LASER_SRC.y;
+    const proj = fx*ux + fy*uy;
+    const cx = LASER_SRC.x + ux*proj - stone.x;
+    const cy = LASER_SRC.y + uy*proj - stone.y;
+    const dist = Math.sqrt(cx*cx+cy*cy);
+    return dist; // lower = more accurate
+  }
+
+  // ─── Shoot ───
+  function shoot(targetX, targetY) {
+    if (!gameActive || roundDone) return;
+    gameActive = false; // prevent double shot
+
+    const hit = hitStone(targetX, targetY);
+    const acc = hit ? getAccuracy(targetX, targetY) : 999;
+
+    // Animate beam
+    laserBeam = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: targetX, y2: targetY, progress: 0 };
+    const beamAnim = setInterval(() => {
+      if (!laserBeam) { clearInterval(beamAnim); return; }
+      laserBeam.progress = Math.min(laserBeam.progress + 0.12, 1);
+      if (laserBeam.progress >= 1) {
+        clearInterval(beamAnim);
+        setTimeout(() => {
+          laserBeam = null;
+          processHit(hit, acc, targetX, targetY);
+        }, 120);
+      }
+    }, 25);
+  }
+
+  function processHit(hit, acc, tx, ty) {
+    if (!hit) {
+      showFlash('פספוס! 💨', 'miss');
+      gameActive = true;
+      return;
+    }
+
+    // Accuracy: dist < 4 = dust (3pts), dist < stone.r = chunks (2pts)
+    const isDust = acc < 5;
+    const pts = isDust ? 3 : 2;
+    stone.hp -= isDust ? 60 : 35;
+
+    spawnParticles(stone.x, stone.y, isDust ? 'dust' : 'chunks');
+    showFlash(isDust ? `אבקה! +3 ✨` : `חלקים! +2 💥`, isDust ? 'dust' : 'chunks');
+
+    if (vsComputer) {
+      scores.me += pts;
+      document.getElementById('score-me').textContent = scores.me;
+      updateScoreCards();
+      if (scores.me >= 10) { endGame(true); return; }
+      // Reset stone after short delay
+      stone.hp = Math.max(stone.hp, 1);
+      setTimeout(() => {
+        resetStone();
+        gameActive = true;
+        // CPU shoots after player
+        setTimeout(cpuShoot, 800);
+      }, 600);
+    } else {
+      // Online: send shot result to Firebase
+      sendOnlineShot(pts);
+    }
+  }
+
+  function resetStone() {
+    stone = { x: W/2 + (Math.random()-0.5)*40, y: H/2 - 10 + (Math.random()-0.5)*30, r: 20+Math.random()*8, hp: 100 };
+  }
+
+  // ─── CPU AI ───
+  function cpuShoot() {
+    if (roundDone) return;
+    // CPU aims with ~60% accuracy
+    const hit = Math.random() < 0.55;
+    if (hit) {
+      const isDust = Math.random() < 0.4;
+      const pts = isDust ? 3 : 2;
+      scores.opp += pts;
+      document.getElementById('score-opp').textContent = scores.opp;
+      spawnParticles(stone.x, stone.y, isDust ? 'dust' : 'chunks');
+      showFlash(isDust ? `מחשב: אבקה! 🤖` : `מחשב: חלקים! 🤖`, isDust ? 'dust' : 'chunks');
+      updateScoreCards();
+      if (scores.opp >= 10) { endGame(false); return; }
+    } else {
+      showFlash('מחשב פספס! 😄', 'miss');
+    }
+    setTimeout(() => { gameActive = true; }, 600);
+  }
+
+  function updateScoreCards() {
+    document.getElementById('score-card-me').classList.toggle('active', gameActive);
+  }
+
+  function endGame(iWon) {
+    roundDone = true; gameActive = false;
+    const statusEl = document.getElementById('status-area');
+    statusEl.innerHTML = iWon
+      ? `<div class="status-win">🏆 ריסקת אותם! המחשב ילך לרופא 😂</div>`
+      : `<div class="status-lose">😔 המחשב ריסק אותך! לך לרופא 😂</div>`;
+    document.getElementById('next-btn').textContent = '🔄 משחק חדש';
+    document.getElementById('next-btn').style.display = 'block';
+  }
+
+  // ─── Touch/Mouse input ───
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width, scaleY = H / rect.height;
+    const touch = e.touches ? e.touches[0] : e;
+    return {
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top) * scaleY
+    };
+  }
+
+  canvas.addEventListener('mousedown', e => { dragging = true; dragStart = getPos(e); });
+  canvas.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const pos = getPos(e);
+    aimLine = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: pos.x, y2: pos.y };
+  });
+  canvas.addEventListener('mouseup', e => {
+    if (!dragging) return;
+    dragging = false; aimLine = null;
+    const pos = getPos(e);
+    shoot(pos.x, pos.y);
+  });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); dragging = true; dragStart = getPos(e); });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const pos = getPos(e);
+    aimLine = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: pos.x, y2: pos.y };
+  });
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    dragging = false; aimLine = null;
+    const pos = getPos(e.changedTouches ? {touches: e.changedTouches} : e);
+    shoot(pos.x, pos.y);
+  });
+
+  function showFlash(text, type) {
+    const flash = document.createElement('div');
+    flash.className = `result-flash ${type}`;
+    flash.textContent = text;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 1200);
+  }
+
+  // ─── Online (stub — same Firebase pattern) ───
+  async function sendOnlineShot(pts) {
+    // For now just update local scores and firebase
+    scores.me += pts;
+    document.getElementById('score-me').textContent = scores.me;
+    const iWon = scores.me >= 10;
+    await update(ref(db, `rooms4/${roomCode}`), {
+      [`shots/${myRole}`]: scores.me,
+      winner: iWon ? myRole : null
+    });
+    if (iWon) endGameOnline(true);
+    else { resetStone(); gameActive = true; }
+  }
+
+  function endGameOnline(iWon) {
+    roundDone = true; gameActive = false;
+    const statusEl = document.getElementById('status-area');
+    statusEl.innerHTML = iWon
+      ? `<div class="status-win">🏆 ריסקת אותם! החבר ילך לרופא 😂</div>`
+      : `<div class="status-lose">😔 החבר ריסק אותך! לך לרופא 😂</div>`;
+    document.getElementById('next-btn').textContent = '🔄 משחק חדש';
+    document.getElementById('next-btn').style.display = 'block';
+  }
+
+  // ─── VS CPU ───
+  window.startVsCpu = function() {
+    vsComputer = true; myRole = 'X';
+    scores = { me: 0, opp: 0 };
+    roundDone = false; gameActive = true;
+    resetStone();
+    show('game');
+    document.getElementById('room-badge-code').textContent = 'מחשב 🤖';
+    document.getElementById('score-name-me').textContent = 'אתה 🔬';
+    document.getElementById('score-name-opp').textContent = 'מחשב 🤖';
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('status-area').innerHTML = '<div class="status-pill">גרור לייזר לכיוון האבן וירה! 🎯</div>';
+    gameLoop();
+  };
+
+  // ─── VS FRIEND ───
+  window.startVsFriend = async function() {
+    let code;
+    for (let i = 0; i < 10; i++) {
+      code = Math.floor(1000 + Math.random() * 9000).toString();
+      const snap = await get(ref(db, `rooms4/${code}`));
+      if (!snap.exists()) break;
+    }
+    await set(ref(db, `rooms4/${code}`), { status: 'waiting', shots: { X: 0, O: 0 }, winner: null });
+    roomCode = code; myRole = 'X';
+    document.getElementById('display-code').textContent = code;
+    show('waiting');
+    listenRoomOnline();
+    const url = `${location.origin}${location.pathname}?room=${code}`;
+    const text = `בוא נשחק ריסוק אבנים בכליות! ${url}`;
+    if (navigator.share) { try { await navigator.share({ title: 'ריסוק אבנים', text }); } catch(e){} }
+    else { await navigator.clipboard.writeText(text).catch(()=>{}); alert('הלינק הועתק 📋'); }
+  };
+
+  window.joinRoom = async function() {
+    const code = document.getElementById('join-code').value.trim();
+    const errEl = document.getElementById('lobby-err');
+    if (code.length !== 4) { errEl.textContent = 'קוד חייב להיות 4 ספרות'; return; }
+    const snap = await get(ref(db, `rooms4/${code}`));
+    if (!snap.exists()) { errEl.textContent = 'חדר לא נמצא 🤷'; return; }
+    if (snap.val().status !== 'waiting') { errEl.textContent = 'החדר כבר מלא'; return; }
+    errEl.textContent = '';
+    await update(ref(db, `rooms4/${code}`), { status: 'playing' });
+    roomCode = code; myRole = 'O';
+    show('game'); initOnlineUI(); listenRoomOnline(); startOnlineGame();
+  };
+
+  function listenRoomOnline() {
+    if (unsubscribe) unsubscribe();
+    unsubscribe = onValue(ref(db, `rooms4/${roomCode}`), snap => {
+      if (!snap.exists()) { leaveRoom(); return; }
+      const data = snap.val();
+      if (myRole === 'X' && data.status === 'playing' && document.getElementById('waiting').style.display !== 'none') {
+        show('game'); initOnlineUI(); startOnlineGame();
+      }
+      // Update opponent score
+      const oppRole = myRole === 'X' ? 'O' : 'X';
+      const oppScore = data.shots ? (data.shots[oppRole] || 0) : 0;
+      document.getElementById('score-opp').textContent = oppScore;
+      scores.opp = oppScore;
+      if (data.winner && data.winner !== myRole && !roundDone) endGameOnline(false);
+    });
+  }
+
+  function initOnlineUI() {
+    document.getElementById('room-badge-code').textContent = roomCode;
+    document.getElementById('score-name-me').textContent = myRole === 'X' ? 'אתה 🔬' : 'אתה 🔬';
+    document.getElementById('score-name-opp').textContent = 'יריב 🔬';
+  }
+
+  function startOnlineGame() {
+    scores = { me: 0, opp: 0 }; roundDone = false; gameActive = true;
+    resetStone();
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('status-area').innerHTML = '<div class="status-pill">גרור לייזר לכיוון האבן וירה! 🎯</div>';
+    gameLoop();
+  }
+
+  window.nextRound = async function() {
+    if (vsComputer) {
+      scores = { me: 0, opp: 0 }; roundDone = false; gameActive = true;
+      resetStone();
+      document.getElementById('score-me').textContent = '0';
+      document.getElementById('score-opp').textContent = '0';
+      document.getElementById('next-btn').style.display = 'none';
+      document.getElementById('status-area').innerHTML = '<div class="status-pill">גרור לייזר לכיוון האבן וירה! 🎯</div>';
+    } else {
+      await update(ref(db, `rooms4/${roomCode}`), { shots: { X: 0, O: 0 }, winner: null });
+      scores = { me: 0, opp: 0 }; roundDone = false; gameActive = true;
+      resetStone();
+      document.getElementById('score-me').textContent = '0';
+      document.getElementById('score-opp').textContent = '0';
+      document.getElementById('next-btn').style.display = 'none';
+      document.getElementById('status-area').innerHTML = '<div class="status-pill">גרור לייזר לכיוון האבן וירה! 🎯</div>';
+    }
+  };
+
+  window.sendEmoji = async function(emoji) {
+    if (vsComputer) { showEmojiBubble(emoji, true); return; }
+    await update(ref(db, `rooms4/${roomCode}/emoji`), { value: emoji, from: myRole, ts: Date.now() });
+  };
+
+  function handleEmojiUpdate(data) {
+    if (!data || !data.ts) return;
+    if (data.ts <= lastEmojiTs) return;
+    lastEmojiTs = data.ts;
+    showEmojiBubble(data.value, data.from === myRole);
+  }
+
+  function showEmojiBubble(emoji, isMe) {
+    const el = document.createElement('div');
+    el.className = 'emoji-bubble ' + (isMe ? 'mine' : 'theirs');
+    el.textContent = emoji;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+  }
+
+  window.leaveRoom = async function() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    if (roomCode) { await remove(ref(db, `rooms4/${roomCode}`)); roomCode = null; }
+    myRole = null; vsComputer = false; gameActive = false; roundDone = false;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    document.getElementById('lobby-err').textContent = '';
+    history.replaceState({}, '', location.pathname);
+    show('lobby');
+  };
+
+  function show(id) {
+    ['lobby','waiting','game'].forEach(s => {
+      document.getElementById(s).style.display = s === id ? (id==='game'?'flex':'block') : 'none';
+    });
+  }
+
+  // Auto-join
+  (async function() {
+    const params = new URLSearchParams(location.search);
+    const roomParam = params.get('room');
+    if (!roomParam) return;
+    const snap = await get(ref(db, `rooms4/${roomParam}`));
+    const errEl = document.getElementById('lobby-err');
+    if (!snap.exists()) { errEl.textContent = 'חדר לא נמצא'; history.replaceState({}, '', location.pathname); return; }
+    if (snap.val().status !== 'waiting') { errEl.textContent = 'החדר כבר מלא'; history.replaceState({}, '', location.pathname); return; }
+    await update(ref(db, `rooms4/${roomParam}`), { status: 'playing' });
+    roomCode = roomParam; myRole = 'O';
+    history.replaceState({}, '', location.pathname);
+    show('game'); initOnlineUI(); listenRoomOnline(); startOnlineGame();
+  })();
+</script>
+</body>
+</html>
