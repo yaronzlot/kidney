@@ -250,11 +250,7 @@
   <div class="canvas-wrap">
     <canvas id="gameCanvas" width="400" height="340"></canvas>
   </div>
-  <button class="fire-btn" id="btn-fire"
-    ontouchstart="event.preventDefault();window._fire&&window._fire()"
-    onmousedown="window._fire&&window._fire()">
-    🔬 ירה!
-  </button>
+  <button class="fire-btn" id="btn-fire">🔬 ירה!</button>
 
   <button class="next-btn" id="next-btn" onclick="nextRound()" style="display:none">▶ סיבוב הבא</button>
 
@@ -384,7 +380,7 @@
     // Laser aim line (straight up)
     if (!laserBeam) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(0,255,80,0.25)';
+      ctx.strokeStyle = 'rgba(255,0,0,0.3)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4,6]);
       ctx.beginPath();
@@ -510,13 +506,13 @@
     dGrad.addColorStop(1, '#0a2a3a');
     ctx.fillStyle = dGrad;
     ctx.beginPath(); ctx.roundRect(-20,-10,40,20,6); ctx.fill();
-    ctx.strokeStyle = '#00c8ff';
+    ctx.strokeStyle = '#ff3030';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     // Laser tip
-    ctx.fillStyle = '#00ffff';
+    ctx.fillStyle = '#ff3030';
     ctx.beginPath(); ctx.arc(0,-10,4,0,Math.PI*2); ctx.fill();
-    ctx.shadowColor = '#00ffff';
+    ctx.shadowColor = '#ff0000';
     ctx.shadowBlur = 10;
     ctx.fill();
     // Label
@@ -536,13 +532,13 @@
 
     ctx.save();
     // Outer glow
-    ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+    ctx.strokeStyle = 'rgba(255,0,0,0.4)';
     ctx.lineWidth = 8;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
     // Inner beam
-    ctx.strokeStyle = '#00ffff';
+    ctx.strokeStyle = '#ff2020';
     ctx.lineWidth = 2;
-    ctx.shadowColor = '#00ffff';
+    ctx.shadowColor = '#ff0000';
     ctx.shadowBlur = 15;
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(ex,ey); ctx.stroke();
     ctx.restore();
