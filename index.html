@@ -616,7 +616,10 @@
       document.getElementById('score-me').textContent = scores.me;
       updateScoreCards();
       if (scores.me >= 10) { endGame(true); return; }
+      // Check if all stones destroyed — respawn
+      const aliveAfter = stones.filter(s => s.hp > 0);
       setTimeout(() => {
+        if (aliveAfter.length === 0) stones = makeStones();
         gameActive = true;
         setTimeout(cpuShoot, 600);
       }, 500);
@@ -650,6 +653,9 @@
       showFlash(`מחשב: +${chosen.pts}! 🤖`, chosen.pts===3 ? 'dust' : 'chunks');
       updateScoreCards();
       if (scores.opp >= 10) { endGame(false); return; }
+      // Respawn if all gone
+      const aliveAfterCpu = stones.filter(s => s.hp > 0);
+      if (aliveAfterCpu.length === 0) setTimeout(() => { stones = makeStones(); }, 400);
     } else {
       showFlash('מחשב פספס! 😄', 'miss');
     }
