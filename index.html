@@ -596,6 +596,16 @@
     animFrame = requestAnimationFrame(gameLoop);
   }
 
+  function fireShot() {
+    if (!gameActive || roundDone || laserBeam) return;
+    shoot(laserX, 0);
+  }
+
+  // Wire fire button
+  document.getElementById('btn-fire').addEventListener('touchstart', e => { e.preventDefault(); fireShot(); });
+  document.getElementById('btn-fire').addEventListener('mousedown', () => fireShot());
+  document.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); fireShot(); } });
+
   // ─── Hit detection — checks all stones ───
   function findHitStone(x2, y2) {
     const dx = x2 - laserX, dy = y2 - LASER_Y;
