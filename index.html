@@ -182,6 +182,28 @@
       80% { opacity:1; transform:translateY(-120px) scale(1.3); }
       100% { opacity:0; transform:translateY(-160px) scale(0.8); }
     }
+    .controls-row {
+      display: flex; gap: 8px; width: 100%; margin-bottom: 8px;
+    }
+    .ctrl-btn {
+      flex: 1; padding: 16px 8px; border-radius: 16px; border: none;
+      background: rgba(0,200,255,0.12); color: #00c8ff;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      border: 1px solid rgba(0,200,255,0.3); font-family: inherit;
+      user-select: none; -webkit-user-select: none;
+      transition: background 0.1s;
+    }
+    .ctrl-btn:active { background: rgba(0,200,255,0.3); }
+    .fire-btn {
+      flex: 1.5; padding: 16px 8px; border-radius: 16px; border: none;
+      background: linear-gradient(135deg, #00c8ff, #0077aa);
+      color: white; font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; user-select: none; -webkit-user-select: none;
+      box-shadow: 0 4px 16px rgba(0,200,255,0.3);
+      transition: transform 0.1s;
+    }
+    .fire-btn:active { transform: scale(0.96); }
+
     @keyframes pop {
       0% { transform:scale(0.7); opacity:0; }
       70% { transform:scale(1.1); }
@@ -239,7 +261,22 @@
   <div class="canvas-wrap">
     <canvas id="gameCanvas" width="400" height="340"></canvas>
   </div>
-  <div class="aim-hint">לחץ וגרור מהלייזר לכיוון האבן → שחרר לירות</div>
+  <div class="controls-row">
+    <button class="ctrl-btn" id="btn-left"
+      ontouchstart="laserMoveLeft=true" ontouchend="laserMoveLeft=false"
+      onmousedown="laserMoveLeft=true" onmouseup="laserMoveLeft=false" onmouseleave="laserMoveLeft=false">
+      ◀ שמאל
+    </button>
+    <button class="fire-btn" id="btn-fire"
+      ontouchstart="fireShot()" onmousedown="fireShot()">
+      🔬 ירה!
+    </button>
+    <button class="ctrl-btn" id="btn-right"
+      ontouchstart="laserMoveRight=true" ontouchend="laserMoveRight=false"
+      onmousedown="laserMoveRight=true" onmouseup="laserMoveRight=false" onmouseleave="laserMoveRight=false">
+      ימין ▶
+    </button>
+  </div>
 
   <button class="next-btn" id="next-btn" onclick="nextRound()" style="display:none">▶ סיבוב הבא</button>
 
@@ -290,22 +327,48 @@
   const W = canvas.width, H = canvas.height;
 
   // CT-style setup
-  const KIDNEY = { x: W/2, y: H/2 - 10, rx: 110, ry: 130 };
-  const LASER_SRC = { x: W/2, y: H - 30 };
+  const KIDNEY = { x: W/2, y: H/2 - 30, rx: 110, ry: 120 };
+  let laserX = W/2; // laser position on X axis
+  const LASER_Y = H - 25;
 
-  // 3 stones: large(r=22,pts=1), medium(r=14,pts=2), small(r=8,pts=3)
+  // Moving stones
   function makeStones() {
     return [
-      { x: W/2 - 25, y: H/2 - 40, r: 22, pts: 1, hp: 100, label: '1נק' },
-      { x: W/2 + 30, y: H/2 + 10, r: 14, pts: 2, hp: 100, label: '2נק' },
-      { x: W/2 - 10, y: H/2 + 55, r: 8,  pts: 3, hp: 100, label: '3נק' },
+      { x: KIDNEY.x - 30, y: KIDNEY.y - 30, r: 22, pts: 1, label: '1נק',
+        vx: (Math.random()-0.5)*1.2, vy: (Math.random()-0.5)*1.2, hp: 100 },
+      { x: KIDNEY.x + 20, y: KIDNEY.y + 20, r: 14, pts: 2, label: '2נק',
+        vx: (Math.random()-0.5)*1.8, vy: (Math.random()-0.5)*1.8, hp: 100 },
+      { x: KIDNEY.x - 10, y: KIDNEY.y + 50, r: 8,  pts: 3, label: '3נק',
+        vx: (Math.random()-0.5)*2.4, vy: (Math.random()-0.5)*2.4, hp: 100 },
     ];
   }
   let stones = makeStones();
 
+  // Move stones inside kidney
+  function updateStones() {
+    if (!gameActive || roundDone) return;
+    stones.forEach(s => {
+      if (s.hp <= 0) return;
+      s.x += s.vx; s.y += s.vy;
+      // Bounce inside kidney ellipse
+      const dx = (s.x - KIDNEY.x) / (KIDNEY.rx - s.r - 5);
+      const dy = (s.y - KIDNEY.y) / (KIDNEY.ry - s.r - 5);
+      if (dx*dx + dy*dy > 1) {
+        // Push back and bounce
+        s.vx *= -1; s.vy *= -1;
+        s.x += s.vx * 2; s.y += s.vy * 2;
+      }
+    });
+  }
+
+  // Laser move buttons state
+  let laserMoveLeft = false, laserMoveRight = false;
+  function updateLaser() {
+    if (laserMoveLeft)  laserX = Math.max(20, laserX - 3);
+    if (laserMoveRight) laserX = Math.min(W-20, laserX + 3);
+  }
+
   let dragging = false;
-  let dragStart = null;
-  let aimLine = null; // {x1,y1,x2,y2}
   let particles = [];
   let laserAnim = null;
   let laserBeam = null; // active beam being drawn
@@ -335,14 +398,15 @@
     drawKidneyCT();
     stones.forEach(s => { if (s.hp > 0) drawStoneCT(s); });
 
-    if (aimLine && !laserBeam) {
+    // Laser aim line (straight up)
+    if (!laserBeam) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(0,255,100,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6,4]);
+      ctx.strokeStyle = 'rgba(0,255,80,0.25)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,6]);
       ctx.beginPath();
-      ctx.moveTo(aimLine.x1, aimLine.y1);
-      ctx.lineTo(aimLine.x2, aimLine.y2);
+      ctx.moveTo(laserX, LASER_Y - 20);
+      ctx.lineTo(laserX, 0);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.restore();
@@ -456,7 +520,7 @@
 
   function drawLaserDevice() {
     ctx.save();
-    ctx.translate(LASER_SRC.x, LASER_SRC.y);
+    ctx.translate(laserX, LASER_Y);
     // Device body
     const dGrad = ctx.createLinearGradient(-20,-10,20,10);
     dGrad.addColorStop(0, '#1a4a6a');
@@ -546,6 +610,8 @@
   // ─── Game loop ───
   let animFrame;
   function gameLoop() {
+    updateStones();
+    updateLaser();
     updateParticles();
     drawScene();
     animFrame = requestAnimationFrame(gameLoop);
@@ -553,22 +619,22 @@
 
   // ─── Hit detection — checks all stones ───
   function findHitStone(x2, y2) {
-    const dx = x2 - LASER_SRC.x, dy = y2 - LASER_SRC.y;
+    const dx = x2 - laserX, dy = y2 - LASER_Y;
     const len = Math.sqrt(dx*dx+dy*dy);
     const ux = dx/len, uy = dy/len;
     let best = null, bestDist = 999;
     for (const s of stones) {
       if (s.hp <= 0) continue;
-      const fx = LASER_SRC.x - s.x, fy = LASER_SRC.y - s.y;
+      const fx = laserX - s.x, fy = LASER_Y - s.y;
       const a = dx*dx+dy*dy, b = 2*(fx*dx+fy*dy), c = fx*fx+fy*fy-s.r*s.r;
       const disc = b*b-4*a*c;
       if (disc < 0) continue;
       const t = (-b - Math.sqrt(disc))/(2*a);
       if (t < 0 || t > 1) continue;
       // Distance from center to line
-      const px = s.x - LASER_SRC.x, py = s.y - LASER_SRC.y;
+      const px = s.x - laserX, py = s.y - LASER_Y;
       const proj = px*ux+py*uy;
-      const cx = LASER_SRC.x+ux*proj-s.x, cy = LASER_SRC.y+uy*proj-s.y;
+      const cx = laserX+ux*proj-s.x, cy = LASER_Y+uy*proj-s.y;
       const dist = Math.sqrt(cx*cx+cy*cy);
       if (dist < bestDist) { bestDist = dist; best = { stone: s, dist }; }
     }
@@ -582,7 +648,7 @@
 
     const hitResult = findHitStone(targetX, targetY);
 
-    laserBeam = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: targetX, y2: targetY, progress: 0 };
+    laserBeam = { x1: laserX, y1: LASER_Y, x2: targetX, y2: targetY, progress: 0 };
     const beamAnim = setInterval(() => {
       if (!laserBeam) { clearInterval(beamAnim); return; }
       laserBeam.progress = Math.min(laserBeam.progress + 0.12, 1);
@@ -691,7 +757,7 @@
   canvas.addEventListener('mousemove', e => {
     if (!dragging) return;
     const pos = getPos(e);
-    aimLine = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: pos.x, y2: pos.y };
+    aimLine = { x1: laserX, y1: LASER_Y, x2: pos.x, y2: pos.y };
   });
   canvas.addEventListener('mouseup', e => {
     if (!dragging) return;
@@ -705,7 +771,7 @@
     e.preventDefault();
     if (!dragging) return;
     const pos = getPos(e);
-    aimLine = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: pos.x, y2: pos.y };
+    aimLine = { x1: laserX, y1: LASER_Y, x2: pos.x, y2: pos.y };
   });
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
