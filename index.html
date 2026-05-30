@@ -289,12 +289,19 @@
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
 
-  // Stone target zone — center area of kidney
-  const KIDNEY = { x: W/2, y: H/2 - 20, rx: 75, ry: 95 };
-  // Stone position inside kidney
-  let stone = { x: W/2, y: H/2 - 10, r: 22, hp: 100 };
-  // Laser source — bottom center
+  // CT-style setup
+  const KIDNEY = { x: W/2, y: H/2 - 10, rx: 110, ry: 130 };
   const LASER_SRC = { x: W/2, y: H - 30 };
+
+  // 3 stones: large(r=22,pts=1), medium(r=14,pts=2), small(r=8,pts=3)
+  function makeStones() {
+    return [
+      { x: W/2 - 25, y: H/2 - 40, r: 22, pts: 1, hp: 100, label: '1נק' },
+      { x: W/2 + 30, y: H/2 + 10, r: 14, pts: 2, hp: 100, label: '2נק' },
+      { x: W/2 - 10, y: H/2 + 55, r: 8,  pts: 3, hp: 100, label: '3נק' },
+    ];
+  }
+  let stones = makeStones();
 
   let dragging = false;
   let dragStart = null;
@@ -307,29 +314,30 @@
   function drawScene() {
     ctx.clearRect(0, 0, W, H);
 
-    // Background — medical dark
-    const bg = ctx.createRadialGradient(W/2, H/2, 30, W/2, H/2, 220);
-    bg.addColorStop(0, '#0d1a2a');
-    bg.addColorStop(1, '#060a12');
-    ctx.fillStyle = bg;
+    // CT scan background — dark grey
+    ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, W, H);
 
-    // Grid lines (medical look)
-    ctx.strokeStyle = 'rgba(0,200,255,0.05)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 30) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    // CT scan noise texture
+    ctx.fillStyle = 'rgba(40,40,40,0.5)';
+    for (let i = 0; i < 200; i++) {
+      ctx.fillRect(Math.random()*W, Math.random()*H, 1, 1);
+    }
 
-    // Kidney shape
-    drawKidney();
+    // CT info overlay
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('CT SCAN  |  KIDNEY', 8, 16);
+    ctx.textAlign = 'right';
+    ctx.fillText('LITHOTRIPSY MODE', W-8, 16);
 
-    // Stone
-    if (stone.hp > 0) drawStone();
+    drawKidneyCT();
+    stones.forEach(s => { if (s.hp > 0) drawStoneCT(s); });
 
-    // Aim line
     if (aimLine && !laserBeam) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(0,200,255,0.4)';
+      ctx.strokeStyle = 'rgba(0,255,100,0.6)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6,4]);
       ctx.beginPath();
@@ -340,88 +348,108 @@
       ctx.restore();
     }
 
-    // Laser beam animation
     if (laserBeam) drawLaserBeam();
-
-    // Particles
     drawParticles();
-
-    // Laser device
     drawLaserDevice();
   }
 
-  function drawKidney() {
+  function drawKidneyCT() {
     ctx.save();
     ctx.translate(KIDNEY.x, KIDNEY.y);
-    // Outer kidney shape (ellipse with indent)
+
+    // Outer body tissue — very dark
+    const bodyGrad = ctx.createRadialGradient(0, 0, 40, 0, 0, KIDNEY.rx + 30);
+    bodyGrad.addColorStop(0, 'rgba(60,55,50,0.4)');
+    bodyGrad.addColorStop(1, 'rgba(20,18,15,0.0)');
     ctx.beginPath();
-    ctx.ellipse(0, 0, KIDNEY.rx, KIDNEY.ry, 0, 0, Math.PI * 2);
-    const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, KIDNEY.rx);
-    grad.addColorStop(0, 'rgba(180,60,80,0.25)');
-    grad.addColorStop(1, 'rgba(120,30,50,0.4)');
-    ctx.fillStyle = grad;
+    ctx.ellipse(0, 0, KIDNEY.rx+30, KIDNEY.ry+30, 0, 0, Math.PI*2);
+    ctx.fillStyle = bodyGrad;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(220,80,100,0.5)';
+
+    // Kidney parenchyma — CT grey
+    const kidGrad = ctx.createRadialGradient(-20, -20, 10, 0, 0, KIDNEY.rx);
+    kidGrad.addColorStop(0, '#555550');
+    kidGrad.addColorStop(0.4, '#3a3a35');
+    kidGrad.addColorStop(0.8, '#252520');
+    kidGrad.addColorStop(1, '#181815');
+    ctx.beginPath();
+    ctx.ellipse(0, 0, KIDNEY.rx, KIDNEY.ry, 0, 0, Math.PI*2);
+    ctx.fillStyle = kidGrad;
+    ctx.fill();
+
+    // Renal pelvis — lighter center
+    const pelvisGrad = ctx.createRadialGradient(10, 0, 5, 10, 0, 50);
+    pelvisGrad.addColorStop(0, 'rgba(120,115,100,0.6)');
+    pelvisGrad.addColorStop(1, 'rgba(80,75,65,0.0)');
+    ctx.beginPath();
+    ctx.ellipse(10, 0, 50, 60, 0, 0, Math.PI*2);
+    ctx.fillStyle = pelvisGrad;
+    ctx.fill();
+
+    // Kidney outline
+    ctx.strokeStyle = 'rgba(150,145,130,0.5)';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, KIDNEY.rx, KIDNEY.ry, 0, 0, Math.PI*2);
     ctx.stroke();
 
-    // Inner texture lines
-    ctx.strokeStyle = 'rgba(255,120,140,0.1)';
+    // Inner cortex texture lines
+    ctx.strokeStyle = 'rgba(100,95,80,0.15)';
     ctx.lineWidth = 1;
-    for (let i = -3; i <= 3; i++) {
+    for (let i = 0; i < 6; i++) {
+      const angle = (i/6)*Math.PI*2;
       ctx.beginPath();
-      ctx.ellipse(i*8, 0, KIDNEY.rx * 0.6, KIDNEY.ry * 0.7, 0, 0, Math.PI*2);
+      ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(angle)*KIDNEY.rx*0.9, Math.sin(angle)*KIDNEY.ry*0.9);
       ctx.stroke();
     }
 
     // Label
-    ctx.fillStyle = 'rgba(255,150,160,0.5)';
-    ctx.font = '11px Heebo';
+    ctx.fillStyle = 'rgba(200,200,180,0.4)';
+    ctx.font = '10px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('כליה', 0, -KIDNEY.ry + 16);
+    ctx.fillText('KIDNEY', 0, -KIDNEY.ry + 14);
     ctx.restore();
   }
 
-  function drawStone() {
-    const s = stone;
+  function drawStoneCT(s) {
     ctx.save();
     ctx.translate(s.x, s.y);
 
-    // Stone glow
-    const glow = ctx.createRadialGradient(0,0,2,0,0,s.r*1.8);
-    glow.addColorStop(0, 'rgba(180,150,80,0.3)');
+    // CT stone = bright white with glow (high density)
+    const glow = ctx.createRadialGradient(0,0,0,0,0,s.r*2.5);
+    glow.addColorStop(0, 'rgba(255,255,240,0.5)');
+    glow.addColorStop(0.5, 'rgba(255,255,200,0.15)');
     glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(0,0,s.r*1.8,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,s.r*2.5,0,Math.PI*2);
+    ctx.fillStyle = glow; ctx.fill();
 
-    // Stone body
-    const stoneGrad = ctx.createRadialGradient(-4,-4,2,0,0,s.r);
-    stoneGrad.addColorStop(0, '#d4a855');
-    stoneGrad.addColorStop(0.5, '#a07830');
-    stoneGrad.addColorStop(1, '#5a4010');
+    // Stone body — bright white/grey like CT
+    const sGrad = ctx.createRadialGradient(-s.r*0.3,-s.r*0.3,1,0,0,s.r);
+    sGrad.addColorStop(0, '#ffffff');
+    sGrad.addColorStop(0.4, '#e0e0d0');
+    sGrad.addColorStop(0.8, '#b0b0a0');
+    sGrad.addColorStop(1, '#808075');
+
     ctx.beginPath();
-    // Irregular stone shape
-    ctx.save();
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const r = s.r * (0.8 + Math.sin(i * 2.3) * 0.2);
-      if (i === 0) ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
+    // Irregular shape
+    for (let i = 0; i < 9; i++) {
+      const angle = (i/9)*Math.PI*2;
+      const r = s.r * (0.75 + Math.sin(i*2.7+s.r)*0.25);
+      if (i===0) ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
       else ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
     }
     ctx.closePath();
-    ctx.fillStyle = stoneGrad;
-    ctx.fill();
-    ctx.strokeStyle = '#8a6020';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = sGrad; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.restore();
 
-    // HP bar
-    const hpPct = s.hp / 100;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(-s.r, s.r + 6, s.r*2, 6);
-    ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f39c12' : '#e74c3c';
-    ctx.fillRect(-s.r, s.r + 6, s.r*2*hpPct, 6);
+    // Points label
+    ctx.fillStyle = 'rgba(0,255,150,0.9)';
+    ctx.font = `bold ${Math.max(9, s.r*0.7)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(s.label, 0, s.r + 12);
 
     ctx.restore();
   }
@@ -523,43 +551,37 @@
     animFrame = requestAnimationFrame(gameLoop);
   }
 
-  // ─── Hit detection ───
-  function hitStone(x2, y2) {
-    // Line from LASER_SRC to (x2,y2) — check if it passes through stone
-    const dx = x2 - LASER_SRC.x, dy = y2 - LASER_SRC.y;
-    const fx = LASER_SRC.x - stone.x, fy = LASER_SRC.y - stone.y;
-    const a = dx*dx + dy*dy;
-    const b = 2*(fx*dx + fy*dy);
-    const c = fx*fx + fy*fy - stone.r*stone.r;
-    const disc = b*b - 4*a*c;
-    if (disc < 0) return false;
-    const t = (-b - Math.sqrt(disc)) / (2*a);
-    return t >= 0 && t <= 1;
-  }
-
-  function getAccuracy(x2, y2) {
-    // How close to stone center does the line pass?
+  // ─── Hit detection — checks all stones ───
+  function findHitStone(x2, y2) {
     const dx = x2 - LASER_SRC.x, dy = y2 - LASER_SRC.y;
     const len = Math.sqrt(dx*dx+dy*dy);
     const ux = dx/len, uy = dy/len;
-    // Distance from stone center to line
-    const fx = stone.x - LASER_SRC.x, fy = stone.y - LASER_SRC.y;
-    const proj = fx*ux + fy*uy;
-    const cx = LASER_SRC.x + ux*proj - stone.x;
-    const cy = LASER_SRC.y + uy*proj - stone.y;
-    const dist = Math.sqrt(cx*cx+cy*cy);
-    return dist; // lower = more accurate
+    let best = null, bestDist = 999;
+    for (const s of stones) {
+      if (s.hp <= 0) continue;
+      const fx = LASER_SRC.x - s.x, fy = LASER_SRC.y - s.y;
+      const a = dx*dx+dy*dy, b = 2*(fx*dx+fy*dy), c = fx*fx+fy*fy-s.r*s.r;
+      const disc = b*b-4*a*c;
+      if (disc < 0) continue;
+      const t = (-b - Math.sqrt(disc))/(2*a);
+      if (t < 0 || t > 1) continue;
+      // Distance from center to line
+      const px = s.x - LASER_SRC.x, py = s.y - LASER_SRC.y;
+      const proj = px*ux+py*uy;
+      const cx = LASER_SRC.x+ux*proj-s.x, cy = LASER_SRC.y+uy*proj-s.y;
+      const dist = Math.sqrt(cx*cx+cy*cy);
+      if (dist < bestDist) { bestDist = dist; best = { stone: s, dist }; }
+    }
+    return best;
   }
 
   // ─── Shoot ───
   function shoot(targetX, targetY) {
     if (!gameActive || roundDone) return;
-    gameActive = false; // prevent double shot
+    gameActive = false;
 
-    const hit = hitStone(targetX, targetY);
-    const acc = hit ? getAccuracy(targetX, targetY) : 999;
+    const hitResult = findHitStone(targetX, targetY);
 
-    // Animate beam
     laserBeam = { x1: LASER_SRC.x, y1: LASER_SRC.y, x2: targetX, y2: targetY, progress: 0 };
     const beamAnim = setInterval(() => {
       if (!laserBeam) { clearInterval(beamAnim); return; }
@@ -568,40 +590,36 @@
         clearInterval(beamAnim);
         setTimeout(() => {
           laserBeam = null;
-          processHit(hit, acc, targetX, targetY);
+          processHit(hitResult, targetX, targetY);
         }, 120);
       }
     }, 25);
   }
 
-  function processHit(hit, acc, tx, ty) {
-    if (!hit) {
+  function processHit(hitResult, tx, ty) {
+    if (!hitResult) {
       showFlash('פספוס! 💨', 'miss');
       gameActive = true;
       return;
     }
 
-    // Accuracy: dist < 4 = dust (3pts), dist < stone.r = chunks (2pts)
-    const isDust = acc < 5;
-    const pts = isDust ? 3 : 2;
-    stone.hp -= isDust ? 60 : 35;
+    const s = hitResult.stone;
+    const pts = s.pts;
+    const isDust = pts === 3;
+    s.hp -= 100; // one hit destroys
 
-    spawnParticles(stone.x, stone.y, isDust ? 'dust' : 'chunks');
-    showFlash(isDust ? `אבקה! +3 ✨` : `חלקים! +2 💥`, isDust ? 'dust' : 'chunks');
+    spawnParticles(s.x, s.y, isDust ? 'dust' : 'chunks');
+    showFlash(isDust ? `ריסוק! +${pts} ✨` : `חלקים! +${pts} 💥`, isDust ? 'dust' : 'chunks');
 
     if (vsComputer) {
       scores.me += pts;
       document.getElementById('score-me').textContent = scores.me;
       updateScoreCards();
       if (scores.me >= 10) { endGame(true); return; }
-      // Reset stone after short delay
-      stone.hp = Math.max(stone.hp, 1);
       setTimeout(() => {
-        resetStone();
         gameActive = true;
-        // CPU shoots after player
-        setTimeout(cpuShoot, 800);
-      }, 600);
+        setTimeout(cpuShoot, 600);
+      }, 500);
     } else {
       // Online: send shot result to Firebase
       sendOnlineShot(pts);
@@ -609,27 +627,33 @@
   }
 
   function resetStone() {
-    stone = { x: W/2 + (Math.random()-0.5)*40, y: H/2 - 10 + (Math.random()-0.5)*30, r: 20+Math.random()*8, hp: 100 };
+    stones = makeStones();
   }
 
   // ─── CPU AI ───
   function cpuShoot() {
     if (roundDone) return;
-    // CPU aims with ~60% accuracy
-    const hit = Math.random() < 0.55;
+    const alive = stones.filter(s => s.hp > 0);
+    if (alive.length === 0) { gameActive = true; return; }
+    // CPU picks a random alive stone with ~60% hit rate
+    const hit = Math.random() < 0.60;
     if (hit) {
-      const isDust = Math.random() < 0.4;
-      const pts = isDust ? 3 : 2;
-      scores.opp += pts;
+      // CPU tends to pick easier (bigger) stones
+      const weights = alive.map(s => s.r);
+      const total = weights.reduce((a,b)=>a+b,0);
+      let rand = Math.random()*total, chosen = alive[0];
+      for (let i = 0; i < alive.length; i++) { rand -= weights[i]; if (rand <= 0) { chosen = alive[i]; break; } }
+      chosen.hp = 0;
+      scores.opp += chosen.pts;
       document.getElementById('score-opp').textContent = scores.opp;
-      spawnParticles(stone.x, stone.y, isDust ? 'dust' : 'chunks');
-      showFlash(isDust ? `מחשב: אבקה! 🤖` : `מחשב: חלקים! 🤖`, isDust ? 'dust' : 'chunks');
+      spawnParticles(chosen.x, chosen.y, chosen.pts===3 ? 'dust' : 'chunks');
+      showFlash(`מחשב: +${chosen.pts}! 🤖`, chosen.pts===3 ? 'dust' : 'chunks');
       updateScoreCards();
       if (scores.opp >= 10) { endGame(false); return; }
     } else {
       showFlash('מחשב פספס! 😄', 'miss');
     }
-    setTimeout(() => { gameActive = true; }, 600);
+    setTimeout(() => { gameActive = true; }, 700);
   }
 
   function updateScoreCards() {
