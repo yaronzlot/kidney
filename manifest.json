@@ -1,0 +1,27 @@
+{
+  "name": "ריסוק אבנים בכליות",
+  "short_name": "ריסוק אבנים",
+  "description": "משחק לייזר לריסוק אבנים בכליות",
+  "start_url": "/kidney/",
+  "scope": "/kidney/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a1a",
+  "theme_color": "#00c8ff",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
